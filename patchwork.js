@@ -6,16 +6,21 @@ var patch = (function () {
     var global = new Function("return this;")(), // Get a reference to the global object
         fnProps = Object.getOwnPropertyNames(Function); // Get the own ("static") properties of the Function constructor
 
-    return function (original, originalRef, patched, patchedStatic) {
+    return function (original, originalRef, patches) {
 
         var ref = global[originalRef] = original, // Maintain a reference to the original constructor as a new property on the global object
             args = [],
             newRef; // This will be the new patched constructor
 
-        patchedStatic = patchedStatic || originalRef; // If we are not patching static calls just pass them through to the original function
-        
+        patches.called = patches.called || originalRef; // If we are not patching static calls just pass them through to the original function
+
         args.length = original.length; // Match the arity of the original constructor
-        args.push("'use strict'; return (!!this ? " + patched + " : " + patchedStatic + ").apply(null, arguments);"); // This string is evaluated to create the patched constructor body
+
+        if (patches.constructed) { // This string is evaluated to create the patched constructor body in the case that we are patching newed calls
+            args.push("'use strict'; return (!!this ? " + patches.constructed + " : " + patches.called + ").apply(null, arguments);"); 
+        } else { // This string is evaluated to create the patched constructor body in the case that we are only patching static calls
+            args.push("'use strict'; return (!!this ? new (Function.prototype.bind.apply(" + originalRef + ", [{}].concat([].slice.call(arguments))))() : " + patches.called + ".apply(null, arguments));");
+        }
 
         newRef = new (Function.prototype.bind.apply(Function, [{}].concat(args)))(); // Create a new function to wrap the patched constructor
         newRef.prototype = original.prototype; // Keep a reference to the original prototype to ensure instances of the patch appear as instances of the original
