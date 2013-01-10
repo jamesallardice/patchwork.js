@@ -10,11 +10,14 @@ var patch = (function () {
 
         var ref = global[originalRef] = original, // Maintain a reference to the original constructor as a new property on the global object
             args = [],
-            newRef; // This will be the new patched constructor
+            newRef, // This will be the new patched constructor
+            i;
 
         patches.called = patches.called || originalRef; // If we are not patching static calls just pass them through to the original function
 
-        args.length = original.length; // Match the arity of the original constructor
+        for (i = 0; i < original.length; i++) { // Match the arity of the original constructor
+            args[i] = "a" + i; // Give the arguments a name (native constructors don't care, but user-defined ones will break otherwise)
+        }
 
         if (patches.constructed) { // This string is evaluated to create the patched constructor body in the case that we are patching newed calls
             args.push("'use strict'; return (!!this ? " + patches.constructed + " : " + patches.called + ").apply(null, arguments);"); 
